@@ -147,29 +147,33 @@ def arcade(calendar, t, mobile=False):
     w = 480 if mobile else 985
     x0, cols = 28, len(weeks)
     cw = (w - 2 * x0) / cols
-    rh, y0, duration = (16 if mobile else 17), 70, (14 if mobile else 26)
-    centers = [(x0 + cw * (c + .5), y0 + rh * r) for r in range(7) for c in (range(cols) if r % 2 == 0 else reversed(range(cols)))]
-    path, dist, travelled = [(x0 - cw, y0)] + centers + [(centers[-1][0] + cw, centers[-1][1])], {}, 0.0
-    for a, b in zip(path, path[1:]):
-        travelled += math.dist(a, b)
-        dist[b] = travelled
-    cells = []
+    rh, y0 = (16 if mobile else 17), 70
+    # Pac-Man and every pellet share one step timeline: step k is the k-th cell of a serpentine walk, so they cannot drift.
+    walk = [(c, r) for r in range(7) for c in (range(cols) if r % 2 == 0 else reversed(range(cols)))]
+    steps = len(walk) + 2
+    run, duration = .9, steps * .14 / .9
+    at = lambda k: k / (steps - 1) * run
+    step_of = {cell: k + 1 for k, cell in enumerate(walk)}
+    cells, side = [], rh * .66
     for c, week in enumerate(weeks):
         for day in week["contributionDays"]:
             r = day["weekday"]
             cx, cy = x0 + cw * (c + .5), y0 + rh * r
-            eaten = dist[(cx, cy)] / travelled * .9
+            eaten = at(step_of[(c, r)])
             level = LEVELS.index(day["contributionLevel"])
-            gone = f'<animate attributeName="opacity" values="1;1;.1;.1" keyTimes="0;{eaten:.4f};{eaten + .002:.4f};1" dur="{duration}s" repeatCount="indefinite"/>'
-            side = rh * .66
+            gone = f'<animate attributeName="opacity" values="1;1;.1;.1" keyTimes="0;{eaten:.5f};{eaten + .0005:.5f};1" dur="{duration:.2f}s" repeatCount="indefinite"/>'
             cells.append(f'<circle cx="{cx:.1f}" cy="{cy:.1f}" r="1.6" fill="{t["grid"][0]}">{gone}</circle>' if level == 0 else
                          f'<rect x="{cx - side / 2:.1f}" y="{cy - side / 2:.1f}" width="{side:.1f}" height="{side:.1f}" rx="2.5" fill="{t["grid"][level]}">{gone}</rect>')
-    sx, sy = path[0]
-    motion = " ".join(("M" if i == 0 else "L") + f"{px - sx:.1f},{py - sy:.1f}" for i, (px, py) in enumerate(path))
+    points = [(x0 - cw * .5, y0)] + [(x0 + cw * (c + .5), y0 + rh * r) for c, r in walk] + [(w - x0 + cw * .5, y0 + rh * 6)]
+    facing = [0] + [0 if r % 2 == 0 else 180 for _, r in walk] + [0]
+    times = ";".join(f"{at(k):.5f}" for k in range(steps)) + ";1"
+    where = ";".join(f"{x:.1f},{y:.1f}" for x, y in points + points[-1:])
+    turn = ";".join(str(a) for a in facing + facing[-1:])
     mouth_open, mouth_shut = "M0,0 L6.1,-4.3 A7.5,7.5 0 1,0 6.1,4.3 Z", "M0,0 L7.5,-.4 A7.5,7.5 0 1,0 7.5,.4 Z"
-    pacman = (f'<g transform="translate({sx:.1f},{sy:.1f})"><path d="{mouth_open}" fill="{t["key"]}">'
-              f'<animate attributeName="d" values="{mouth_open};{mouth_shut};{mouth_open}" dur=".3s" repeatCount="indefinite"/></path>'
-              f'<animateMotion dur="{duration}s" repeatCount="indefinite" rotate="auto" calcMode="linear" keyPoints="0;1;1" keyTimes="0;.9;1" path="{motion}"/></g>')
+    pacman = (f'<g transform="translate({points[0][0]:.1f},{points[0][1]:.1f})">'
+              f'<animateTransform attributeName="transform" type="translate" values="{where}" keyTimes="{times}" dur="{duration:.2f}s" repeatCount="indefinite"/>'
+              f'<animateTransform attributeName="transform" type="rotate" additive="sum" calcMode="discrete" values="{turn}" keyTimes="{times}" dur="{duration:.2f}s" repeatCount="indefinite"/>'
+              f'<path d="{mouth_open}" fill="{t["key"]}"><animate attributeName="d" values="{mouth_open};{mouth_shut};{mouth_open}" dur=".35s" repeatCount="indefinite"/></path></g>')
     days = [d for week in calendar["weeks"] for d in week["contributionDays"]]
     best = max(days, key=lambda d: d["contributionCount"])
     streak = longest = 0
