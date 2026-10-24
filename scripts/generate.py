@@ -12,7 +12,7 @@ from pathlib import Path
 from urllib.parse import urlencode
 from xml.sax.saxutils import escape
 
-from artwork import THEMES, arcade, pill, profile, radar
+from artwork import THEMES, pill, profile, radar
 
 USER = "AryamanSharma14"
 ROOT = Path(__file__).resolve().parents[1]
@@ -26,8 +26,7 @@ LINKS = [
     ("email", "mailto:aryamansharma4810@gmail.com"),
     ("pull-requests", "https://github.com/pulls?" + urlencode({"q": f"is:pr author:{USER} is:public"})),
 ]
-CALENDAR = """query { user(login: "%s") { contributionsCollection { contributionCalendar {
-  totalContributions weeks { contributionDays { contributionCount contributionLevel weekday date } } } } } }""" % USER
+CALENDAR = 'query { user(login: "%s") { contributionsCollection { contributionCalendar { totalContributions } } } }' % USER
 
 
 def request(url, payload=None, headers=None):
@@ -144,9 +143,11 @@ def card_rows(data):
     ]
 
 
-def picture(stem, alt, href=None):
-    sources = "".join(f'    <source media="(max-width: 600px) and (prefers-color-scheme: {m})" srcset="{RAW}{stem}-{m}-mobile.svg" />\n' for m in ["dark", "light"])
-    sources += f'    <source media="(max-width: 600px)" srcset="{RAW}{stem}-light-mobile.svg" />\n'
+def picture(stem, alt, href=None, mobile=True):
+    sources = ""
+    if mobile:
+        sources += "".join(f'    <source media="(max-width: 600px) and (prefers-color-scheme: {m})" srcset="{RAW}{stem}-{m}-mobile.svg" />\n' for m in ["dark", "light"])
+        sources += f'    <source media="(max-width: 600px)" srcset="{RAW}{stem}-light-mobile.svg" />\n'
     sources += f'    <source media="(prefers-color-scheme: dark)" srcset="{RAW}{stem}-dark.svg" />\n'
     body = f'  <picture>\n{sources}    <img src="{RAW}{stem}-light.svg" width="900" alt="{escape(alt)}" />\n  </picture>\n'
     return '<p align="center">\n' + (f'  <a href="{href}">\n{body}  </a>\n' if href else body) + '</p>\n'
@@ -165,21 +166,18 @@ def readme():
         picture("profile", "Aryaman Sharma — ASCII portrait with a neofetch-style card: security, dev tooling, infra, Frappe work, contact details and live GitHub stats.", f"https://github.com/{USER}"),
         pills(),
         picture("radar", "Radar sweeping over my most recently updated public repositories."),
-        picture("arcade", "My GitHub contribution year as pellets, with Pac-Man eating through it.", f"https://github.com/{USER}?tab=overview"),
+        picture("snake", "Snake eating my GitHub contributions.", f"https://github.com/{USER}?tab=overview", mobile=False),
     ])
 
 
 def render(data):
     OUT.mkdir(exist_ok=True)
-    for old in OUT.glob("snake-*.svg"):
-        old.unlink()
     rows = card_rows(data)
     for mode, theme in THEMES.items():
         for mobile in [False, True]:
             suffix = mode + ("-mobile" if mobile else "")
             (OUT / f"profile-{suffix}.svg").write_text(profile(rows, theme, mobile), encoding="utf-8")
             (OUT / f"radar-{suffix}.svg").write_text(radar(data["repos"], data["updated"], theme, mobile), encoding="utf-8")
-            (OUT / f"arcade-{suffix}.svg").write_text(arcade(data["calendar"], theme, mobile), encoding="utf-8")
         for name, _ in LINKS:
             (OUT / f"pill-{name}-{mode}.svg").write_text(pill(name, theme), encoding="utf-8")
     (ROOT / "README.md").write_text(readme(), encoding="utf-8")
@@ -193,7 +191,7 @@ def main():
     except (urllib.error.URLError, KeyError, RuntimeError) as error:
         raise SystemExit(f"Could not refresh profile data: {error}") from error
     render(data)
-    print("Rendered profile, radar, arcade and link pills (dark/light, desktop/mobile) and README.md.")
+    print("Rendered profile, radar and link pills (dark/light, desktop/mobile) and README.md.")
 
 
 if __name__ == "__main__":

@@ -30,11 +30,8 @@
 <p align="center">
   <a href="https://github.com/AryamanSharma14?tab=overview">
   <picture>
-    <source media="(max-width: 600px) and (prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/AryamanSharma14/AryamanSharma14/main/assets/arcade-dark-mobile.svg" />
-    <source media="(max-width: 600px) and (prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/AryamanSharma14/AryamanSharma14/main/assets/arcade-light-mobile.svg" />
-    <source media="(max-width: 600px)" srcset="https://raw.githubusercontent.com/AryamanSharma14/AryamanSharma14/main/assets/arcade-light-mobile.svg" />
-    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/AryamanSharma14/AryamanSharma14/main/assets/arcade-dark.svg" />
-    <img src="https://raw.githubusercontent.com/AryamanSharma14/AryamanSharma14/main/assets/arcade-light.svg" width="900" alt="My GitHub contribution year as pellets, with Pac-Man eating through it." />
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/AryamanSharma14/AryamanSharma14/main/assets/snake-dark.svg" />
+    <img src="https://raw.githubusercontent.com/AryamanSharma14/AryamanSharma14/main/assets/snake-light.svg" width="900" alt="Snake eating my GitHub contributions." />
   </picture>
   </a>
 </p>

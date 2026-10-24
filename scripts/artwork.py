@@ -1,4 +1,4 @@
-"""SVG renderers for the profile card, repo radar, contribution arcade and link pills."""
+"""SVG renderers for the profile card, repo radar and link pills."""
 import json
 import math
 import random
@@ -11,11 +11,10 @@ RAMP = " .:-=+*#%@"
 USER_PROMPT = "aryaman@github ~ $ "
 THEMES = {
     "dark": dict(bg="#161b22", border="#30363d", text="#c9d1d9", muted="#8b949e", dim="#616e7f", key="#ffa657",
-                 value="#a5d6ff", add="#3fb950", remove="#f85149", grid=["#6e7681", "#0e4429", "#006d32", "#26a641", "#39d353"]),
+                 value="#a5d6ff", add="#3fb950", remove="#f85149"),
     "light": dict(bg="#f6f8fa", border="#d0d7de", text="#1f2328", muted="#59636e", dim="#8c959f", key="#bc4c00",
-                  value="#0a3069", add="#1a7f37", remove="#cf222e", grid=["#afb8c1", "#9be9a8", "#40c463", "#30a14e", "#216e39"]),
+                  value="#0a3069", add="#1a7f37", remove="#cf222e"),
 }
-LEVELS = ["NONE", "FIRST_QUARTILE", "SECOND_QUARTILE", "THIRD_QUARTILE", "FOURTH_QUARTILE"]
 BASE_CSS = (".in{animation:in .2s ease-out backwards}@keyframes in{from{opacity:0}}"
             ".cur{animation:blink 1s steps(1) infinite}@keyframes blink{50%{opacity:0}}")
 data_dir = Path(__file__).parent
@@ -139,54 +138,6 @@ def profile(rows, t, mobile=False):
             body.append(line(x, y + i * gap, spans, size, width, anim("in", 1.1 + i * .05)))
     body.append(cursor_prompt(x, y + (total - 1) * gap, t, size, 1.1 + total * .05))
     return svg(w, h, t, "Aryaman Sharma — security, dev tooling and infra; Frappe contributor", "".join(body), art_css + type_css)
-
-
-def arcade(calendar, t, mobile=False):
-    """Contribution year as Pac-Man pellets (dots for quiet days, green squares for active ones), eaten on a synced SMIL loop."""
-    weeks = calendar["weeks"][-26:] if mobile else calendar["weeks"]
-    w = 480 if mobile else 985
-    x0, cols = 28, len(weeks)
-    cw = (w - 2 * x0) / cols
-    rh, y0 = (16 if mobile else 17), 70
-    # Pac-Man and every pellet share one step timeline: step k is the k-th cell of a serpentine walk, so they cannot drift.
-    walk = [(c, r) for r in range(7) for c in (range(cols) if r % 2 == 0 else reversed(range(cols)))]
-    steps = len(walk) + 2
-    run, duration = .9, steps * .14 / .9
-    at = lambda k: k / (steps - 1) * run
-    step_of = {cell: k + 1 for k, cell in enumerate(walk)}
-    cells, side = [], rh * .66
-    for c, week in enumerate(weeks):
-        for day in week["contributionDays"]:
-            r = day["weekday"]
-            cx, cy = x0 + cw * (c + .5), y0 + rh * r
-            eaten = at(step_of[(c, r)])
-            level = LEVELS.index(day["contributionLevel"])
-            gone = f'<animate attributeName="opacity" values="1;1;.1;.1" keyTimes="0;{eaten:.5f};{eaten + .0005:.5f};1" dur="{duration:.2f}s" repeatCount="indefinite"/>'
-            cells.append(f'<circle cx="{cx:.1f}" cy="{cy:.1f}" r="1.6" fill="{t["grid"][0]}">{gone}</circle>' if level == 0 else
-                         f'<rect x="{cx - side / 2:.1f}" y="{cy - side / 2:.1f}" width="{side:.1f}" height="{side:.1f}" rx="2.5" fill="{t["grid"][level]}">{gone}</rect>')
-    points = [(x0 - cw * .5, y0)] + [(x0 + cw * (c + .5), y0 + rh * r) for c, r in walk] + [(w - x0 + cw * .5, y0 + rh * 6)]
-    facing = [0] + [0 if r % 2 == 0 else 180 for _, r in walk] + [0]
-    times = ";".join(f"{at(k):.5f}" for k in range(steps)) + ";1"
-    where = ";".join(f"{x:.1f},{y:.1f}" for x, y in points + points[-1:])
-    turn = ";".join(str(a) for a in facing + facing[-1:])
-    mouth_open, mouth_shut = "M0,0 L6.1,-4.3 A7.5,7.5 0 1,0 6.1,4.3 Z", "M0,0 L7.5,-.4 A7.5,7.5 0 1,0 7.5,.4 Z"
-    pacman = (f'<g transform="translate({points[0][0]:.1f},{points[0][1]:.1f})">'
-              f'<animateTransform attributeName="transform" type="translate" values="{where}" keyTimes="{times}" dur="{duration:.2f}s" repeatCount="indefinite"/>'
-              f'<animateTransform attributeName="transform" type="rotate" additive="sum" calcMode="discrete" values="{turn}" keyTimes="{times}" dur="{duration:.2f}s" repeatCount="indefinite"/>'
-              f'<path d="{mouth_open}" fill="{t["key"]}"><animate attributeName="d" values="{mouth_open};{mouth_shut};{mouth_open}" dur=".35s" repeatCount="indefinite"/></path></g>')
-    days = [d for week in calendar["weeks"] for d in week["contributionDays"]]
-    best = max(days, key=lambda d: d["contributionCount"])
-    streak = longest = 0
-    for d in days:
-        streak = streak + 1 if d["contributionCount"] else 0
-        longest = max(longest, streak)
-    fy = y0 + 6 * rh + 34
-    size = 12 if mobile else 13
-    stats = ([(f'{calendar["totalContributions"]}', t["value"]), (" contributions · streak ", t["muted"]), (f"{longest}d", t["value"])] if mobile else
-             [(f'{calendar["totalContributions"]}', t["value"]), (" contributions in the last year · longest streak ", t["muted"]),
-              (f"{longest} days", t["value"]), (" · best day ", t["muted"]), (f'{best["contributionCount"]} on {best["date"]}', t["value"])])
-    body = prompt(x0, 38, "contributions --year", t, 13 if mobile else 15) + "".join(cells) + pacman + line(x0, fy, stats, size)
-    return svg(w, fy + 22, t, "My GitHub contribution year as pellets, with Pac-Man eating through it", body)
 
 
 def radar(repos, updated, t, mobile=False):
